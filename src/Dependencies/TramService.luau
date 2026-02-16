@@ -3,11 +3,12 @@
 
 export type Tram = {
 	FunctionsBinded: { [string]: any },
-	YeildingThreads: {[string] : thread},
+	YeildingThreads: { [string]: thread },
 	TransversableID: string?,
 	Callback: boolean?,
 	Timeout: number,
 	BindID: string,
+	IsModuleEvent: boolean?,
 
 	Connect: (self: Tram, (...any) -> ()) -> (),
 	Fire: (self: Tram, ...any) -> (),
@@ -47,7 +48,7 @@ export type OnlySignaling = {
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- 							[[ Service]]
 
-local SERVICE_NAME = "[TramService]"
+local SERVICE_NAME = "[TramService]:"
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -85,7 +86,7 @@ local function RunCachedThread(FN: () -> (), ...)
 	end
 
 	if coroutine.status(Thread) ~= "suspended" then
-		warn(SERVICE_NAME, ": Junk thread found removing from cache")
+		warn(string.format("%s, Junk thread found removing from cache", SERVICE_NAME))
 		return RunCachedThread(FN)
 	end
 
@@ -147,12 +148,12 @@ end
 
 local Tram = {}
 
-Tram.ClassName = Tram
+Tram.ClassName = "Tram"
 Tram.__index = Tram
 
 -- Connect a function to the tram
-function Tram:Connect(fn) : ()
-	assert(type(fn) == "function", SERVICE_NAME, ": Attempt to index " .. typeof(fn) .. " with function.")
+function Tram:Connect(fn): ()
+	assert(type(fn) == "function", string.format("%s Attempt to index %s with function", SERVICE_NAME, typeof(fn)))
 
 	self = GetUpdate(self)
 
@@ -166,20 +167,29 @@ function Tram:Connect(fn) : ()
 end
 
 -- Handles the data sent in a optimized threaded capacity
-function Tram:Fire(...) : ()
+function Tram:Fire(...): ()
 	local TransversableEvent = GetUpdate(self)
 	if not TransversableEvent then
-		return error(SERVICE_NAME .. ": Attempt to get Transversable Station for ["..tostring(self.TransversableID).. "] ID has no reciprocal.",100)
+		return error(
+			string.format(
+				"%s Attempt to get traversable  station for [%s] ID has no reciprocal",
+				SERVICE_NAME,
+				tostring(self.TransversableID)
+			),
+			100
+		)
 	end
 	self = TransversableEvent
 
 	--print(self)
 
 	if self.Callback then
-		if not self.FunctionsBinded then
-			return warn(SERVICE_NAME .. ": Attempt to fire [" .. tostring(self.TransversableID) .. "], No function binded.")
+		if not self.FunctionsBinded and not self.IsModuleEvent then
+			return warn(
+				SERVICE_NAME .. ": Attempt to fire [" .. tostring(self.TransversableID) .. "], No function binded."
+			)
 		end
-		return Timeout(self.Timeout, (self.FunctionsBinded :: any), ...)
+		return Timeout(self.Timeout, self.FunctionsBinded :: any, ...)
 	else
 		for _, Thread in self.YeildingThreads do
 			coroutine.resume(Thread, ...)
@@ -187,8 +197,10 @@ function Tram:Fire(...) : ()
 
 		self.YeildingThreads = {}
 
-		if not next(self.FunctionsBinded) then
-			return warn(SERVICE_NAME .. ": Attempt to fire [" .. tostring(self.TransversableID) .. "], No function binded.")
+		if not next(self.FunctionsBinded) and not self.IsModuleEvent then
+			return warn(
+				SERVICE_NAME .. ": Attempt to fire [" .. tostring(self.TransversableID) .. "], No function binded."
+			)
 		end
 
 		for _, Func in self.FunctionsBinded do
@@ -201,8 +213,14 @@ end
 
 -- Yields the main thread until :Fire() is called and resumes it
 function Tram:Wait(): ()
-	assert(not self.Callback, SERVICE_NAME, ": Attempt to yield callback function, cannot yield callbacks")
-	assert(self.YeildingThreads[self.BindID] == nil, (SERVICE_NAME..": Attempt to yeild thread that is already yielding"))
+	assert(
+		not self.Callback,
+		string.format("%s Attempt to yield callback function, cannot yield callbacks", SERVICE_NAME)
+	)
+	assert(
+		self.YeildingThreads[self.BindID] == nil,
+		string.format("%s Attempt to yield thread that is already yielding", SERVICE_NAME)
+	)
 
 	self.YeildingThreads[self.BindID] = coroutine.running()
 	PublishUpdate(self)
@@ -211,15 +229,20 @@ function Tram:Wait(): ()
 end
 
 -- Disconnects a function from the tram
-function Tram:Disconnect() : ()
+function Tram:Disconnect(): ()
 	self = GetUpdate(self)
 
-	assert(
-		type(self.FunctionsBinded[self.BindID]) == "function",
-		SERVICE_NAME,
-		": Attempt to disconnect nil, No function binded"
-	)
-	assert(not self.YeildingThreads, SERVICE_NAME, ": Attempt to disconnect tram while a station is yielding")
+	if not self.IsModuleEvent then
+		assert(
+			type(self.FunctionsBinded[self.BindID]) == "function",
+			string.format("%s Attempt to disconnect nil, no function binded", SERVICE_NAME)
+		)
+
+		assert(
+			not next(self.YeildingThreads),
+			string.format("%s Attempt to disconnect tram while a station is yielding", SERVICE_NAME)
+		)
+	end
 
 	if self.Callback then
 		self.FunctionsBinded = nil :: any
@@ -235,12 +258,20 @@ end
 local TramService = {}
 
 -- TransversableID needed to make the event accessable outside of the main script container
-function TramService.NewTram(TransversableID: string?, Function: boolean?, Timeout: number?): Tram
-	assert(not TransversableID or type(TransversableID) == "string", "Attempt to index string or nil with " .. typeof(TransversableID))
-
+function TramService.NewTram(
+	TransversableID: string?,
+	IsModuleEvent: boolean?,
+	Function: boolean?,
+	Timeout: number?
+): Tram
+	assert(
+		not TransversableID or type(TransversableID) == "string",
+		string.format("%s Attempt to index string or nil with %s", SERVICE_NAME, typeof(TransversableID))
+	)
 	local self = {}
 
 	self.Callback = Function or false
+	self.IsModuleEvent = IsModuleEvent
 	self.TransversableID = TransversableID or "NonTransversable"
 	self.FunctionsBinded = if Function then nil else {}
 	self.Timeout = Timeout or 5
