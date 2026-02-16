@@ -3,7 +3,7 @@
 Category service is a thread based memory manager similar to collection service.
 It provides powerful objects to manage memory consuming objects suck as RBXScriptConnections and threads
 
-** Features **
+### **Features:**
 
 -   Fully type annotated and type safe
 -   thread based protections
