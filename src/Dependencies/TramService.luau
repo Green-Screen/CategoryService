@@ -108,7 +108,7 @@ local function Timeout(Time: number, FN, ...): (boolean, ...any)
 		task.wait()
 	until Returned or os.clock() - Start > Time
 
-	coroutine.close(RunThread)
+	task.cancel(RunThread)
 
 	if not Returned then
 		warn("Function callback time exhausted limit of " .. Time .. " seconds.")
@@ -192,7 +192,7 @@ function Tram:Fire(...): ()
 		return Timeout(self.Timeout, self.FunctionsBinded :: any, ...)
 	else
 		for _, Thread in self.YeildingThreads do
-			coroutine.resume(Thread, ...)
+			task.spawn(Thread, ...)
 		end
 
 		self.YeildingThreads = {}

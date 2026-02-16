@@ -49,6 +49,8 @@ TestCategory1.Insertion:Connect(function(SubCategory: string)
 	print(SubCategory, "Was inserted to category on:", TestCategory1.ThreadLock)
 end)
 
+TestCategory1.Insertion:Wait()
+
 TestCategory1:Clean("Category", "RBXScriptConnection", "Instance", "thread")
 
 print(TestCategory1.TasksOnThread)
@@ -61,7 +63,7 @@ TestCategory1:FreeCurrentThread()
 
 warn(TestCategory1, getmetatable(TestCategory1))
 
---TestCategory1:Insert(Connection1)
+TestCategory1:Insert(Connection1)
 
 print(CategoryService:GetCategoryOnCurrentThread())
 

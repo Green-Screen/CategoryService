@@ -55,8 +55,8 @@ local AllowedObjects = {
 	},
 	["thread"] = {
 		["MethodOrCall"] = "Call",
-		["FunctionName"] = "close",
-		["Library"] = coroutine,
+		["FunctionName"] = "cancel",
+		["Library"] = task,
 	},
 	["Instance"] = {
 		["MethodOrCall"] = "Method",
