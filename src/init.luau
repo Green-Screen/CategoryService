@@ -111,7 +111,7 @@ local function BuildTaskTree(): {}
 	return self
 end
 -- ... = What should be cleaned if all then all
-local function DoClean(self: Category, WhatShouldBeCleaned: { [number]: string })
+local function DoClean(self: InternalCategory, WhatShouldBeCleaned: { [number]: string })
 	print(WhatShouldBeCleaned)
 
 	for _, SubCategory: string in WhatShouldBeCleaned do
