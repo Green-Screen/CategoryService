@@ -73,11 +73,12 @@ local AllowedObjects = {
 	},
 }
 
+-- function to verify
 local function CheckIfObjectIsAllowed(object: string): boolean
 	return (AllowedObjects[object] ~= nil)
 end
 
--- object must be in allowed objects
+-- object must be in allowed objects and returns the string
 local function GetObjectString(object: any): string
 	local Type = EasyType(object)
 
@@ -89,6 +90,7 @@ local function GetObjectString(object: any): string
 	return Type
 end
 
+-- Checks if a datatype is allowed
 local function IsObjectAllowed(object: any): boolean
 	local Type = EasyType(object)
 
@@ -155,11 +157,13 @@ local function DoClean(self: InternalCategory, WhatShouldBeCleaned: { [number]: 
 	end
 end
 
-local function Destroy(self: InternalCategory): never
+-- Destroys the object
+local function Destroy(self: InternalCategory): nil
 	ActiveThreadCategories[self.ThreadLock] = nil
 	self.Insertion:Disconnect()
+
 	setmetatable(self, nil)
-	table.clear(self :: any)
+	self = nil :: never
 	return self :: never
 end
 
@@ -194,10 +198,12 @@ function CategoryServiceMetaData:Insert(...: any)
 	end
 end
 
-function CategoryServiceMetaData:Clean(...: "thead" | "RBXScriptConnection" | "Instance" | "Tween" | "Category")
+-- Cleans the given subcategories
+function CategoryServiceMetaData:Clean(...: any)
 	DoClean(self, { ... })
 end
 
+-- Cleans all categories but leaves the object still linked to the thread
 function CategoryServiceMetaData:CleanAll()
 	local All = {}
 	for Object: string, _ in AllowedObjects :: { [string]: any } do
@@ -206,6 +212,9 @@ function CategoryServiceMetaData:CleanAll()
 	DoClean(self, All)
 end
 
+-- Cleans then removes object from thread
+
+--			[	You can only close a category on the same thread it is binded too	]
 function CategoryServiceMetaData:FreeCurrentThread(): nil
 	assert(
 		self.ThreadLock == coroutine.running(),
@@ -226,6 +235,8 @@ end
 
 local CategoryService = {}
 
+-- Creates a new empty category assigned to the current thread
+-- You can call GetCategoryOnCurrentThread if you need to retreive or create a linked copy of the category object on the current thread
 function CategoryService.NewCategory(): Category
 	assert(
 		not IsThreadLocked(coroutine.running()),
@@ -246,10 +257,12 @@ function CategoryService.NewCategory(): Category
 	return self
 end
 
+-- Returns the category linked to the current thread
 function CategoryService:GetCategoryOnCurrentThread(): Category?
 	return ActiveThreadCategories[coroutine.running()]
 end
 
+-- Closes the category on the current thread
 function CategoryService:CloseCategoryOnCurrentThread(): ()
 	local CurrentCategory: Category? = self:GetCategoryOnCurrentThread()
 	if CurrentCategory then
