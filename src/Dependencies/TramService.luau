@@ -1,7 +1,7 @@
 -- Main type
 --!strict
 
-export type Tram = {
+export type Tram<P...> = {
 	FunctionsBinded: { [string]: any },
 	YeildingThreads: { [string]: thread },
 	TransversableID: string?,
@@ -10,39 +10,41 @@ export type Tram = {
 	BindID: string,
 	IsModuleEvent: boolean?,
 
-	Connect: (self: Tram, (...any) -> ()) -> (),
-	Fire: (self: Tram, ...any) -> (),
-	Wait: (self: Tram) -> ...any,
-	Disconnect: (self: Tram) -> (),
+	Connect: (self: Tram<P...>, (P...) -> ()) -> (),
+	Fire: (self: Tram<P...>, P...) -> (),
+	Wait: (self: Tram<P...>) -> P...,
+	Disconnect: (self: Tram<P...>) -> (),
 }
 
 -- Specialized tram types.
 -- ALL tram types are a Tram type but the different types are for editing the auto complete for certain uses.
 -- Ie. Modules using this as events, certain events, Only fire or only receive.
 
+-- The only difference is for autocomplete/intellisense everything is a tram type
+
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-export type TramConnectOnly = {
+export type TramConnectOnly<P...> = {
 
-	Connect: (self: Tram, (...any) -> ()) -> (),
-	Wait: (self: Tram) -> ...any,
+	Connect: (self: TramConnectOnly<P...>, (P...) -> ()) -> (),
+	Wait: (self: TramConnectOnly<P...>) -> P...,
 }
 
-export type TramDisconnectOnly = {
+export type TramDisconnectOnly<P...> = {
 
-	Disconnect: (self: Tram) -> (),
+	Disconnect: (self: TramDisconnectOnly<P...>) -> (),
 }
 
-export type ModuleEvent = {
+export type ModuleEvent<P...> = {
 
-	Connect: (self: Tram, (...any) -> ()) -> (),
-	Wait: (self: Tram) -> ...any,
-	Disconnect: (self: Tram) -> (),
+	Connect: (self: ModuleEvent<P...>, (P...) -> ()) -> (),
+	Wait: (self: ModuleEvent<P...>) -> P...,
+	Disconnect: (self: ModuleEvent<P...>) -> (),
 }
 
-export type OnlySignaling = {
+export type OnlySignaling<P...> = {
 
-	Fire: (self: Tram, ...any) -> (),
+	Fire: (self: OnlySignaling<P...>, P...) -> (),
 }
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -119,15 +121,15 @@ end
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Cache manager
 
-local TramCache: { [string?]: Tram } = {}
+local TramCache: { [string?]: Tram<any> } = {}
 
-local function PublishUpdate(Tram: Tram)
+local function PublishUpdate(Tram: Tram<any>)
 	if Tram.TransversableID ~= "NonTransversable" then
 		TramCache[Tram.TransversableID] = Tram
 	end
 end
 
-local function GetUpdate(Tram: Tram)
+local function GetUpdate(Tram: Tram<any>)
 	if Tram.TransversableID == "NonTransversable" then
 		return Tram
 	end
@@ -258,12 +260,12 @@ end
 local TramService = {}
 
 -- TransversableID needed to make the event accessable outside of the main script container
-function TramService.NewTram(
+function TramService.NewTram<P...>(
 	TransversableID: string?,
 	IsModuleEvent: boolean?,
 	Function: boolean?,
 	Timeout: number?
-): Tram
+): Tram<P...>
 	assert(
 		not TransversableID or type(TransversableID) == "string",
 		string.format("%s Attempt to index string or nil with %s", SERVICE_NAME, typeof(TransversableID))

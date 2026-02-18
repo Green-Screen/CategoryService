@@ -13,6 +13,10 @@ local TramService = require("@self/Dependencies/TramService")
 
 ----------------------------------------------------------------------------------------------
 
+-- Supported types wont autofill in roblox studio for wtv reason, use vsc and lsp to get correct intellisense
+-- This list should match the 'AllowedTypes' table
+type SupportedTypes = "thread" | "RBXScriptConnection" | "Instance" | "Tween" | "Category"
+
 -- Types
 export type Category = {
 	--Public category type
@@ -20,18 +24,19 @@ export type Category = {
 	ThreadLock: thread,
 
 	Insert: (self: Category, ...any) -> (),
-	Clean: (self: Category, ..."thread" | "RBXScriptConnection" | "Instance" | "Tween" | "Category") -> (),
+	GetSubCategoryContents: (self: Category, SubCategory: SupportedTypes) -> { any? },
+	Clean: (self: Category, ...SupportedTypes) -> (),
 	CleanAll: (self: Category) -> (),
 	FreeCurrentThread: (self: Category) -> nil,
 
-	Insertion: TramService.ModuleEvent,
+	Insertion: TramService.ModuleEvent<string>,
 }
 
 type InternalCategory = {
 	__index: InternalCategory,
 	ClassName: string,
 
-	Insertion: TramService.Tram,
+	Insertion: TramService.Tram<string>,
 } & Category
 
 ----------------------------------------------------------------------------------------------
@@ -198,8 +203,13 @@ function CategoryServiceMetaData:Insert(...: any)
 	end
 end
 
+-- Returns the subcategory and its sub contents
+function CategoryServiceMetaData:GetSubCategoryContents(SubCategory: SupportedTypes): { [number]: any }
+	return self.TasksOnThread[SubCategory]
+end
+
 -- Cleans the given subcategories
-function CategoryServiceMetaData:Clean(...: any)
+function CategoryServiceMetaData:Clean(...: SupportedTypes)
 	DoClean(self, { ... })
 end
 
@@ -251,7 +261,7 @@ function CategoryService.NewCategory(): Category
 	self.TasksOnThread = BuildTaskTree()
 	self.ThreadLock = coroutine.running()
 
-	self.Insertion = TramService.NewTram(nil, true) :: TramService.ModuleEvent
+	self.Insertion = TramService.NewTram(nil, true)
 
 	ActiveThreadCategories[coroutine.running()] = self
 	return self

@@ -1,4 +1,7 @@
+--!strict
+
 local RunService = game:GetService("RunService")
+local TextureGenerationService = game:GetService("TextureGenerationService")
 local TweenService = game:GetService("TweenService")
 local CategoryService = require("../")
 local EasyType = require("../Dependencies/EasyType")
@@ -46,6 +49,7 @@ task.delay(4, function()
 	local P = Instance.new("Part")
 	print(CategoryService:GetCategoryOnCurrentThread())
 	while task.wait(1) do
+		-- Will eventually error as the category is destroyed
 		TestCategory1:Insert(P)
 	end
 end)
@@ -64,7 +68,7 @@ TestCategory1:Clean("Category", "RBXScriptConnection", "Instance", "thread")
 -- Debug tasks
 print(TestCategory1.TasksOnThread)
 
--- Check if they are properly removed 
+-- Check if they are properly removed
 
 -- This is to check if indexing and instancing is correct
 for _, v: thread in TestCategory1.TasksOnThread.thread do
@@ -75,9 +79,10 @@ end
 TestCategory1:FreeCurrentThread()
 
 -- tests to make sure it is completly cleaned and deallocated
-warn(TestCategory1, getmetatable(TestCategory1))
+warn(TestCategory1, getmetatable(TestCategory1)) -- Shitty stupid type error stupid thing
 
-TestCategory1:Insert(Connection1)
+-- Will error because thread has been cleaned and deallocated
+--TestCategory1:Insert(Connection1)
 
 print(CategoryService:GetCategoryOnCurrentThread()) -- nil
 
@@ -85,10 +90,36 @@ local NewCat = CategoryService.NewCategory()
 
 print("-------------------------------------------------------------------------")
 
-print(CategoryService:GetCategoryOnCurrentThread()) -- thread object
+print(CategoryService:GetCategoryOnCurrentThread()) -- Returns NewCat
 
-CategoryService:CloseCategoryOnCurrentThread() -- Closes the current category linked to thread (NewCat) 
+CategoryService:CloseCategoryOnCurrentThread() -- Closes the current category linked to thread (NewCat)
 
 print(NewCat, CategoryService:GetCategoryOnCurrentThread()) -- nil, nil
 
-SubThreadCategory:FreeCurrentThread()
+-- Will error as thread it was created on is not the same as the current thread running
+--SubThreadCategory:FreeCurrentThread()
+
+local T: CategoryService.Category = CategoryService.NewCategory()
+
+T:Insert(
+	Connection1,
+	Connection2,
+	Connection3,
+	Connectiom4,
+	Connection5,
+	TweenObject1,
+	TweenObject2,
+	TweenObject3,
+	TweenObject4,
+	TweenObject5
+)
+T:Insert(Thread1, Thread2, Thread3, Thread4, Thread5)
+
+-- Returns everything in the category
+print(T:GetSubCategoryContents("RBXScriptConnection"))
+
+-- Returns nil
+print(T:GetSubCategoryContents("Category"))
+
+-- Type errors fixed :D
+T.Insertion:Connect(function(a0: string) end)
