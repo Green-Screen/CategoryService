@@ -1,6 +1,6 @@
 {
-    "luau-lsp.plugin.enabled": true,
-    "luau-lsp.sourcemap.rojoProjectFile": "CategoryService.project.json",
+   "luau-lsp.plugin.enabled": true,
+  "luau-lsp.sourcemap.rojoProjectFile": "CategoryService.project.json",
     
   "editor.defaultFormatter": "JohnnyMorganz.stylua",
   

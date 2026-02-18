@@ -1,7 +1,7 @@
 # Category Service
 
 Category service is a thread based memory manager similar to collection service.
-It provides powerful objects to manage memory consuming objects suck as RBXScriptConnections and threads
+It provides powerful objects to manage memory consuming objects such as RBXScriptConnections and threads
 
 ### **Features:**
 
@@ -9,3 +9,4 @@ It provides powerful objects to manage memory consuming objects suck as RBXScrip
 -   thread based protections
 -   Easy to use
 -   Built on top of intelliscience
+-   Embeded tram service
