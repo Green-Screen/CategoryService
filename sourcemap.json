@@ -14,7 +14,7 @@
           "className": "Folder",
           "children": [
             {
-              "name": "CategoryServiceV2",
+              "name": "CategoryService",
               "className": "ModuleScript",
               "filePaths": [
                 "src/init.luau"

@@ -11,7 +11,7 @@
       "CategoryServiceV2": {
         "$className": "Folder",
         
-          "CategoryServiceV2": {
+          "CategoryService": {
           "$path": "src"
         }
       }

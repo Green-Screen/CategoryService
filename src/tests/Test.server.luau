@@ -1,7 +1,6 @@
 --!strict
 
 local RunService = game:GetService("RunService")
-local TextureGenerationService = game:GetService("TextureGenerationService")
 local TweenService = game:GetService("TweenService")
 local CategoryService = require("../")
 local EasyType = require("../Dependencies/EasyType")
