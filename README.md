@@ -20,3 +20,4 @@ It provides powerful objects to manage memory consuming objects such as RBXScrip
 -   Added type safety for luau type solver
 -   Added 'Tram' class as a native supported type
 -   Syntax cleanup
+-   Categories can now be cleaned from any thread and are no longer thread locked (may be reverted in future)
