@@ -15,7 +15,7 @@ It provides powerful objects to manage memory consuming objects such as RBXScrip
 -   Embeded tram service
 
 
-## **Changelog:**
+### **Changelog:**
 
 -   Added type safety for luau type solver
 -   Added 'Tram' class as a native supported type
