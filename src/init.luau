@@ -1,55 +1,67 @@
--- Category Service V 2.0
+-- Category Service V 2.5
 -- @Patriots8800
 
 --!strict
 
 ----------------------------------------------------------------------------------------------
 
--- Dependenceis
+--					 		[[ Dependencies ]]
 
---local SmartTable = require("@self/Dependencies/SmartTable")
 local EasyType = require("@self/Dependencies/EasyType")
 local TramService = require("@self/Dependencies/TramService")
 
 ----------------------------------------------------------------------------------------------
 
+--					 		[[ Types ]]
+
 -- Supported types wont autofill in roblox studio for wtv reason, use vsc and lsp to get correct intellisense
 -- This list should match the 'AllowedTypes' table
-type SupportedTypes = "thread" | "RBXScriptConnection" | "Instance" | "Tween" | "Category"
+type SupportedTypes = "thread" | "RBXScriptConnection" | "Instance" | "Tween" | "Category" | "Tram"
 
--- Types
 export type Category = {
 	--Public category type
-	TasksOnThread: { [string]: { [number]: any } },
-	ThreadLock: thread,
+	read TasksOnThread: { [string]: { [number]: any } },
+	read ThreadLock: thread,
 
-	Insert: (self: Category, ...any) -> (),
-	GetSubCategoryContents: (self: Category, SubCategory: SupportedTypes) -> { any? },
-	Clean: (self: Category, ...SupportedTypes) -> (),
-	CleanAll: (self: Category) -> (),
-	FreeCurrentThread: (self: Category) -> nil,
+	read Insert: (self: Category, ...any) -> (),
+	read GetSubCategoryContents: (self: Category, SubCategory: SupportedTypes) -> { any? },
+	read Clean: (self: Category, ...SupportedTypes) -> (),
+	read CleanAll: (self: Category) -> (),
+	read FreeCurrentThread: (self: Category) -> nil,
 
-	Insertion: TramService.ModuleEvent<string>,
+	--									The subcategory that got inserted into
+	read Insertion: TramService.ModuleEvent<string>,
 }
 
 type InternalCategory = {
-	__index: InternalCategory,
-	ClassName: string,
+	read __index: InternalCategory,
+	read ClassName: string,
 
-	Insertion: TramService.Tram<string>,
+	--Internal category type
+	write TasksOnThread: { [string]: { [number]: any } },
+	write ThreadLock: thread,
+
+	write Insert: (self: Category, ...any) -> (),
+	write GetSubCategoryContents: (self: Category, SubCategory: SupportedTypes) -> { any? },
+	write Clean: (self: Category, ...SupportedTypes) -> (),
+	write CleanAll: (self: Category) -> (),
+	write FreeCurrentThread: (self: Category) -> nil,
+
+	write Insertion: TramService.Tram<string>,
 } & Category
 
 ----------------------------------------------------------------------------------------------
--- Service Header
+
+--					 		[[ Service Header ]]
 -- A thread based memory manger similar to Collection service
 
 local SERVICE_NAME = "[CategoryService]:"
 
 ----------------------------------------------------------------------------------------------
 
--- Private Functions (helpers)
+--					 		[[ Private functions (helpers) ]]
 
-local ActiveThreadCategories: { [thread]: Category } = {}
+local ActiveThreadCategories: { [thread]: InternalCategory} = {}
 
 -- A constant
 -- Add custom objects here
@@ -75,6 +87,10 @@ local AllowedObjects = {
 	["Category"] = {
 		["MethodOrCall"] = "Method",
 		["FunctionName"] = "Destroy",
+	},
+	["Tram"] = {
+		["MethodOrCall"] = "Method",
+		["FunctionName"] = "DestroyLocal",
 	},
 }
 
@@ -119,8 +135,6 @@ local function BuildTaskTree(): {}
 end
 -- ... = What should be cleaned if all then all
 local function DoClean(self: InternalCategory, WhatShouldBeCleaned: { [number]: string })
-	print(WhatShouldBeCleaned)
-
 	for _, SubCategory: string in WhatShouldBeCleaned do
 		assert(
 			CheckIfObjectIsAllowed(SubCategory),
@@ -165,7 +179,7 @@ end
 -- Destroys the object
 local function Destroy(self: InternalCategory): nil
 	ActiveThreadCategories[self.ThreadLock] = nil
-	self.Insertion:Disconnect()
+	(self.Insertion :: TramService.Tram<any>):DestroyLocal()
 
 	setmetatable(self, nil)
 	self = nil :: never
@@ -174,7 +188,7 @@ end
 
 ----------------------------------------------------------------------------------------------
 
--- MetaData (MetaTable)
+--					 		[[ MetaData (MetaTable) ]]
 
 local CategoryServiceMetaData = {}
 
@@ -241,7 +255,7 @@ end
 
 ----------------------------------------------------------------------------------------------
 
--- Public Service (mostly constructors)
+--					 		[[ Public Service (mostly constructors) ]]
 
 local CategoryService = {}
 
@@ -261,7 +275,7 @@ function CategoryService.NewCategory(): Category
 	self.TasksOnThread = BuildTaskTree()
 	self.ThreadLock = coroutine.running()
 
-	self.Insertion = TramService.NewTram(nil, true)
+	self.Insertion  = TramService.NewTram(nil, true)
 
 	ActiveThreadCategories[coroutine.running()] = self
 	return self
@@ -276,7 +290,7 @@ end
 function CategoryService:CloseCategoryOnCurrentThread(): ()
 	local CurrentCategory: Category? = self:GetCategoryOnCurrentThread()
 	if CurrentCategory then
-		return CurrentCategory:FreeCurrentThread()
+		CurrentCategory:FreeCurrentThread()
 	end
 end
 

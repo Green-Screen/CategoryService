@@ -1,6 +1,7 @@
 {
    "luau-lsp.plugin.enabled": true,
   "luau-lsp.sourcemap.rojoProjectFile": "CategoryService.project.json",
+  "luau-lsp.fflags.enableNewSolver": true,
     
   "editor.defaultFormatter": "JohnnyMorganz.stylua",
   

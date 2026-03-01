@@ -121,4 +121,6 @@ print(T:GetSubCategoryContents("RBXScriptConnection"))
 print(T:GetSubCategoryContents("Category"))
 
 -- Type errors fixed :D
-T.Insertion:Connect(function(a0: string) end)
+T.Insertion:Connect(function(a0: string): ...any? 
+
+end)
