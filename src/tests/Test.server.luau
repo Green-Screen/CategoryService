@@ -114,13 +114,27 @@ T:Insert(
 )
 T:Insert(Thread1, Thread2, Thread3, Thread4, Thread5)
 
+-- Type errors fixed :D
+
+local Event = T.Insertion
+
+-- When Freethread is called tram also gets destroyed
+T.Insertion:Connect(function(a0: string): ...any? 
+	print(a0)
+end)
+
 -- Returns everything in the category
 print(T:GetSubCategoryContents("RBXScriptConnection"))
 
 -- Returns nil
 print(T:GetSubCategoryContents("Category"))
 
--- Type errors fixed :D
-T.Insertion:Connect(function(a0: string): ...any? 
+-- Destroys the object
+--T:FreeCurrentThread()
 
-end)
+-- Will error or print depending if FreeCurrentThread is active or not
+T:Insert(Thread1, Thread2, Thread3)
+
+-- Will not trigger a print
+Event:Fire("Test")
+warn("Fired")
