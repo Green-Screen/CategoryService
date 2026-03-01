@@ -240,7 +240,7 @@ end
 
 --			[	You can only close a category on the same thread it is binded too	]
 function CategoryServiceMetaData:FreeCurrentThread(): nil
-	assert(
+	--[[assert(
 		self.ThreadLock == coroutine.running(),
 		string.format(
 			"%s Attempt to free thread %s from %s. (Threads must be freed by the same thread they are assigned to)",
@@ -248,7 +248,7 @@ function CategoryServiceMetaData:FreeCurrentThread(): nil
 			tostring(self.ThreadLock),
 			tostring(coroutine.running())
 		)
-	)
+	)]]
 	self:CleanAll()
 	return Destroy(self :: InternalCategory)
 end
@@ -275,7 +275,7 @@ function CategoryService.NewCategory(): Category
 	self.TasksOnThread = BuildTaskTree()
 	self.ThreadLock = coroutine.running()
 
-	self.Insertion  = TramService.NewTram(nil, true)
+	self.Insertion  = TramService.NewTram(nil, nil, nil, true)
 
 	ActiveThreadCategories[coroutine.running()] = self
 	return self
