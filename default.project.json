@@ -8,7 +8,7 @@
     "$className": "DataModel",
 
     "Workspace": {
-      "CategoryServiceV2": {
+      "CategoryService": {
         "$className": "Folder",
         
           "CategoryService": {

@@ -1,23 +1,24 @@
-# Category Service
+# TEMPLATE
+### Current Version: V X.X.XX
+## Documentation: 
+### [How to use?](https://LinkToDocs.com)
+
+## What is CLASS?
+CLASS DESCRIPTION
+
+## Warnings
+### **Make sure you set UseNewLuauTypeSolver to enabled in workspace properties to get proper intellisense**
+
+**Due to the experimental status of the type solver sometimes intellisense will not be available due to the complex tupe casting and packing enviorment**
 
 
-## Current Version: V 2.5
-
-Category service is a thread based memory manager similar to collection service.
-It provides powerful objects to manage memory consuming objects such as RBXScriptConnections and threads
 
 ### **Features:**
 
--   Fully type annotated and type safe
--   thread based protections
--   Easy to use
--   Built on top of intellisense
--   Embeded tram service
-
+-   CLASS FEATURES
 
 ### **Changelog:**
 
--   Added type safety for luau type solver
--   Added 'Tram' class as a native supported type
--   Syntax cleanup
--   Categories can now be cleaned from any thread and are no longer thread locked (may be reverted in future)
+-   CLASS MOST RECENT CHANGELOG   
+
+**_This module is still in testing and is not yet ready for production usage_**

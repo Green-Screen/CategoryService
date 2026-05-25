@@ -3,6 +3,6 @@
 registry = "test"
 
 [[package]]
-name = "cagur/categoryv2"
+name = "cagur/tmp"
 version = "0.1.0"
 dependencies = []
