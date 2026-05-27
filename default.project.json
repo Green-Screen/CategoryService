@@ -4,17 +4,6 @@
   
   
   "tree": {
-    "$ignoreUnknownInstances": true,
-    "$className": "DataModel",
-
-    "Workspace": {
-      "CategoryService": {
-        "$className": "Folder",
-        
-          "CategoryService": {
-          "$path": "src"
-        }
-      }
-    }
+    "$path": "src"
   }
 }

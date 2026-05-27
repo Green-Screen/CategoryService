@@ -3,8 +3,7 @@
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local CategoryService = require("../")
-local EasyType = require("../Dependencies/EasyType")
-local TramService = require("../Dependencies/TramService")
+
 
 -- Creates a thread linked category
 local TestCategory1 = CategoryService.NewCategory()

@@ -3,13 +3,13 @@
 
 --!strict
 
+
 ----------------------------------------------------------------------------------------------
 
 --					 		[[ Dependencies ]]
 
-local EasyType = require("@self/Dependencies/EasyType")
-local TramService = require("@self/Dependencies/TramService")
-
+local EasyType = require(script.Dependencies.EasyType)
+local TramService = require(script.Dependencies.TramService)
 ----------------------------------------------------------------------------------------------
 
 --					 		[[ Types ]]

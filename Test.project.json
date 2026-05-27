@@ -1,0 +1,27 @@
+{
+  "name": "CategoryService",
+  "emitLegacyScripts": false,
+  
+  
+  "tree": {
+    "$ignoreUnknownInstances": true,
+    "$className": "DataModel",
+
+    "Workspace": {
+      "CategoryService": {
+        "$className": "Folder",
+        
+          "CategoryService": {
+          "$path": "src",
+
+          "tests": {
+            "$path": "tests"
+          },
+          "Dependencies": {
+            "$path": "Packages"
+          }
+        }
+      }
+    }
+  }
+}
