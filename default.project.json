@@ -1,8 +1,5 @@
 {
-  "name": "CategoryService",
-  "emitLegacyScripts": false,
-  
-  
+  "name": "SecureClasses-PackageLink",
   "tree": {
     "$path": "src"
   }

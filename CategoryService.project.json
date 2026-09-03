@@ -1,0 +1,25 @@
+{
+  "name": "CategoryService",
+  "emitLegacyScripts": false,
+  
+  
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedFirst": {
+      
+      "CategoryService": {
+        "$className": "Folder",
+        "$path": "Packages",
+        
+        "CategoryService": {
+          "$path": "src"
+        },
+
+        "Tests":{
+          "$path": "tests"
+        }
+      }
+    }
+  }
+}

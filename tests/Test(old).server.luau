@@ -1,4 +1,7 @@
---!strict
+--!nocheck
+--!nolint
+
+-- Old test script
 
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")

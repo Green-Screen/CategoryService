@@ -1,297 +1,415 @@
--- Category Service V 2.5
+-- CategoryService V 2.0.0
 -- @Patriots8800
+-- Documentation https://example.com
 
 --!strict
 
+----------------------------------------------------------------------------------------------
+
+-- 							[[ Dependencies ]]
+
+const CustomObjects = require("./CategoryService/CustomObjects")
+
+const EasyType = require("./EasyType")
+const Logger = require("./Logger")
+const SecureClasses = require("./SecureClasses")
+
 
 ----------------------------------------------------------------------------------------------
 
---					 		[[ Dependencies ]]
 
-local EasyType = require(script.Dependencies.EasyType)
-local TramService = require(script.Dependencies.TramService)
-----------------------------------------------------------------------------------------------
+-- 							[[ Types ]]
 
---					 		[[ Types ]]
+type CleanUpInstruction = "All" | "Categories" | "Objects"
 
--- Supported types wont autofill in roblox studio for wtv reason, use vsc and lsp to get correct intellisense
--- This list should match the 'AllowedTypes' table
-type SupportedTypes = "thread" | "RBXScriptConnection" | "Instance" | "Tween" | "Category" | "Tram"
+export type Category<SubCategories...> = SecureClasses.WrappedMetatable<{
+	BindedThread: thread,
 
-export type Category = {
-	--Public category type
-	read TasksOnThread: { [string]: { [number]: any } },
-	read ThreadLock: thread,
+	--- Insert: (self: Category<SubCategories...>, SubCategories..., Objects: {any}) -> () -- Waiting for added support
+	Insert: (self:Category<SubCategories...>, Objects: {any}, SubCategory:string?) -> (),
+    Clean: (((self:Category<SubCategories...>, CleanInstuctions: "All") -> number) & ((self:Category<SubCategories...>, CleanInstuctions: "Categories", ...string) -> number) & ((self:Category<SubCategories...>, CleanInstuctions: "Objects", ...Object | thread) -> number)),
+    CleanAndForget: (((self:Category<SubCategories...>, CleanInstuctions: "All") -> number) & ((self:Category<SubCategories...>, CleanInstuctions: "Categories", ...string) -> number) & ((self:Category<SubCategories...>, CleanInstuctions: "Objects", ...Object | thread) -> number)),
+    CleanAndDestroy: (((self:Category<SubCategories...>, CleanInstuctions: "All") -> number) & ((self:Category<SubCategories...>, CleanInstuctions: "Categories", ...string) -> number) & ((self:Category<SubCategories...>, CleanInstuctions: "Objects", ...Object | thread) -> number)),
+    ForgetSubCategory: <ObjectToRemove>(self:Category<SubCategories...>, SubCategory:string, RemoveSubCategory: boolean?) -> {ObjectToRemove}?,
+    ForgetObject: <ObjectToRemove>(self:Category<SubCategories...>, Object:ObjectToRemove) -> ObjectToRemove?,
 
-	read Insert: (self: Category, ...any) -> (),
-	read GetSubCategoryContents: (self: Category, SubCategory: SupportedTypes) -> { any? },
-	read Clean: (self: Category, ...SupportedTypes) -> (),
-	read CleanAll: (self: Category) -> (),
-	read FreeCurrentThread: (self: Category) -> nil,
+    Amount: (self:Category<SubCategories...>, SubCategory:(string | "Undefined")?) -> number,
+    Contains: (self:Category<SubCategories...>, Object:Object | thread) -> boolean,
+}>
 
-	--									The subcategory that got inserted into
-	read Insertion: TramService.ModuleEvent<string>,
-}
+type ICategory<SubCategories...> = {
+	_TaskTree: {[string]: {any}},
+	_QuickLookUpTable: {[any]: string?},
 
-type InternalCategory = {
-	read __index: InternalCategory,
-	read ClassName: string,
+    Clean: (self:ICategory<SubCategories...>, CleanUpInstruction:CleanUpInstruction, ...any) -> number,
 
-	--Internal category type
-	write TasksOnThread: { [string]: { [number]: any } },
-	write ThreadLock: thread,
+	--- Insert: (self: Category<SubCategories...>, SubCategories..., Objects: {any}) -> () -- Waiting for added support
+} & Category<...any>
 
-	write Insert: (self: Category, ...any) -> (),
-	write GetSubCategoryContents: (self: Category, SubCategory: SupportedTypes) -> { any? },
-	write Clean: (self: Category, ...SupportedTypes) -> (),
-	write CleanAll: (self: Category) -> (),
-	write FreeCurrentThread: (self: Category) -> nil,
 
-	write Insertion: TramService.Tram<string>,
-} & Category
 
 ----------------------------------------------------------------------------------------------
 
---					 		[[ Service Header ]]
--- A thread based memory manger similar to Collection service
+-- 							[[ Service Header ]]
 
-local SERVICE_NAME = "[CategoryService]:"
+const SERVICE_NAME = "CategoryService"
+
 
 ----------------------------------------------------------------------------------------------
 
---					 		[[ Private functions (helpers) ]]
+-- 							[[ Private functions (helpers) ]]
 
-local ActiveThreadCategories: { [thread]: InternalCategory} = {}
+local BindedThreads: {[thread]: Category<>?} = {}
 
--- A constant
--- Add custom objects here
-local AllowedObjects = {
-	["RBXScriptConnection"] = {
-		["MethodOrCall"] = "Method",
-		["FunctionName"] = "Disconnect",
-	},
-	["thread"] = {
-		["MethodOrCall"] = "Call",
-		["FunctionName"] = "cancel",
-		["Library"] = task,
-	},
-	["Instance"] = {
-		["MethodOrCall"] = "Method",
-		["FunctionName"] = "Destroy",
-	},
-	["Tween"] = {
-		["MethodOrCall"] = "Method",
-		["FunctionName"] = "Cancel",
-	},
+const CategoryKey = game:GetService("HttpService"):GenerateGUID()
 
-	["Category"] = {
-		["MethodOrCall"] = "Method",
-		["FunctionName"] = "Destroy",
-	},
-	["Tram"] = {
-		["MethodOrCall"] = "Method",
-		["FunctionName"] = "DestroyLocal",
-	},
-}
+const function BuildTaskTree<T>(...:T) : {[T]:{any}}
+	local TaskTree = {}
+	TaskTree["Undefined"] = {}
 
--- function to verify
-local function CheckIfObjectIsAllowed(object: string): boolean
-	return (AllowedObjects[object] ~= nil)
-end
+	for _, T:string in { ... } do
+		Logger.TypeCheck(T, 1, false, 4, false, "string")
 
--- object must be in allowed objects and returns the string
-local function GetObjectString(object: any): string
-	local Type = EasyType(object)
-
-	if Type == "string" then
-		return object
-	elseif Type == "Instance" and CheckIfObjectIsAllowed(EasyType(object, true)) then
-		return EasyType(object, true)
+		TaskTree[T] = {}
 	end
-	return Type
+
+	return TaskTree
 end
 
--- Checks if a datatype is allowed
-local function IsObjectAllowed(object: any): boolean
-	local Type = EasyType(object)
-
-	if Type == "string" then
-		return CheckIfObjectIsAllowed(object)
-	else
-		return CheckIfObjectIsAllowed(Type)
-	end
+const function IsObjectSupported(Object:any): boolean
+	return CustomObjects[EasyType(Object, true)] ~= nil or Object.Destroy ~= nil
 end
 
-local function IsThreadLocked(thread: thread): boolean
-	return (ActiveThreadCategories[thread] ~= nil)
+const function RemoveObjectFromTable<T>(T: {T}, Object:T): T?
+    for i, V in T do
+        if V == Object then
+            table.remove(T, i)
+            return V
+        end
+    end
+    return nil
 end
 
-local function BuildTaskTree(): {}
-	local self = {}
-	for Object, _ in AllowedObjects do
-		self[Object] = {}
-	end
-	return self
-end
--- ... = What should be cleaned if all then all
-local function DoClean(self: InternalCategory, WhatShouldBeCleaned: { [number]: string })
-	for _, SubCategory: string in WhatShouldBeCleaned do
-		assert(
-			CheckIfObjectIsAllowed(SubCategory),
-			string.format("%s Attempt to index %s in Task map got nil", SERVICE_NAME, SubCategory)
-		)
-
-		for _, Object: any in self.TasksOnThread[SubCategory] do
-			local SubSettings = AllowedObjects[SubCategory]
-			local CloseMethod: "Method" | "Call" = SubSettings.MethodOrCall
-
-			if CloseMethod == "Method" then
-				xpcall(Object[SubSettings.FunctionName], function(Err: string)
-					warn(
-						string.format(
-							"%s Error occured when trying to clean Subcategory %s as a method on %s\nReason: %s\nRemoving link from category to be Garbage collected",
-							SERVICE_NAME,
-							SubCategory,
-							tostring(self.ThreadLock),
-							Err
-						)
-					)
-				end, Object)
-			else
-				xpcall(SubSettings.Library[SubSettings.FunctionName], function(Err: string)
-					warn(
-						string.format(
-							"%s Error occured when trying to clean Subcategory %s as a function call on %s\nReason: %s\nRemoving link from category to be Garbage collected",
-							SERVICE_NAME,
-							SubCategory,
-							tostring(self.ThreadLock),
-							Err
-						)
-					)
-				end, Object)
-			end
-		end
-		-- Clear table of sub-category
-		self.TasksOnThread[SubCategory] = {}
-	end
+const function GetLiteralType(O:any): string
+    if EasyType(O) == "Instance" then
+        if CustomObjects[EasyType(O, true)] then
+            return EasyType(O, true)
+        end
+    end
+    return EasyType(O)
 end
 
--- Destroys the object
-local function Destroy(self: InternalCategory): nil
-	ActiveThreadCategories[self.ThreadLock] = nil
-	(self.Insertion :: TramService.Tram<any>):DestroyLocal()
-
-	setmetatable(self, nil)
-	self = nil :: never
-	return self :: never
+const function GetDestroyProc<T>(Object:T) : CustomObjects.CategoryDestroyInstructions<T>
+    local ObjectType = GetLiteralType(Object)
+    if CustomObjects[ObjectType] then
+        return CustomObjects[ObjectType]
+    else
+        return {
+            ["MethodOrCall"] = "Method",
+            ["FunctionName"] = "Destroy"
+        }
+    end
 end
+
+const function DoCleanProc<T>(T:{T})
+    local Count = 0
+
+    for i, Object: any in T do
+        local Data = GetDestroyProc(Object)
+
+        if Data.MethodOrCall == "Call" and Data.Library then
+            xpcall(function(...)
+                Data.Library[Data.FunctionName](...)
+                Count += 1
+            end, function(err:string)
+                Logger.Display("Emphasize", {Object = tostring(Object), Error = err, CleanUpData = Data}, "Object {Object} failed to clean-up it is being ejected from the cache (THIS MAY RESULT IN MEMORY LEAKS): REASON : {Error}", SERVICE_NAME)
+            end, Object)
+
+        elseif Data.MethodOrCall == "Method" then
+            xpcall(function(...)
+                Object[Data.FunctionName](...)
+                Count += 1
+            end, function(err:string)
+                Logger.Display("Emphasize", {Object = tostring(Object), Error = err, CleanUpData = Data}, "Object {Object} failed to clean-up it is being ejected from the cache (THIS MAY RESULT IN MEMORY LEAKS): REASON : {Error}", SERVICE_NAME)
+            end, Object)
+        end
+
+        T[i] = nil
+    end
+    
+    return Count
+end
+
+const function UnstackTable(T: {any}, Final: {any}?): {any}
+    Final = Final or {}
+
+    for _, v in T do
+        if EasyType(v) == "table" then
+            UnstackTable(v, Final)
+        else
+            table.insert(Final, v)
+        end
+    end
+
+    return Final
+end
+
+const function CleanLookUpCache(LookupCache: {[Object]: string}, ObjectsToClear: {Object})
+    for _, O in ObjectsToClear do
+        LookupCache[O] = nil
+    end
+end
+
 
 ----------------------------------------------------------------------------------------------
-
 --					 		[[ MetaData (MetaTable) ]]
 
-local CategoryServiceMetaData = {}
+const Category = {}
+Category.ClassName = "Category"
+Category.__typeKey = CategoryKey
+Category.__destroy = function(self:ICategory<>)
+    BindedThreads[self.BindedThread] = nil
+    self.BindedThread = nil :: never
+end
+Category.__tostring = function(self:ICategory<>)
+    return `Category on {self.BindedThread}`
+end
 
-CategoryServiceMetaData.__index = CategoryServiceMetaData
-CategoryServiceMetaData.ClassName = "Category"
+-- Update SecureClasses to protect against cleaning against cleaning a running thread
 
--- Insert function
-function CategoryServiceMetaData:Insert(...: any)
-	local PackedObjects = { ... }
+function Category.Insert<T...>(self:ICategory<T...>, Objects: {any}, SubCategory:string?)
+	Logger.TypeCheck(Objects, 1, false, 3, false, "table")
+	Logger.TypeCheck(SubCategory, 2, true, 3, false, "string")
 
-	for _, object: any in PackedObjects do
-		if IsObjectAllowed(object) then
-			local SubCategory: string = GetObjectString(object)
-			table.insert(self.TasksOnThread[SubCategory], object)
-			self.Insertion:Fire(SubCategory)
-		else
-			warn(
-				string.format(
-					"%s Attempt to add %s to category on: [[%s]].\nObject is not registered in AllowedObjects.\n skipping",
-					SERVICE_NAME,
-					EasyType(object),
-					tostring(self.ThreadLock)
-				)
-			)
+	local SubCategoryContents = (self[CategoryKey] :: ICategory<T...>)._TaskTree[SubCategory or "Undefined"]
+	Logger.Assert(SubCategoryContents ~= nil, `SubCategory {SubCategory} is not a valid SubCategory for Category binded on {tostring(self.BindedThread)}`, 3, SERVICE_NAME)
+
+	local QuickLookUpTable = (self[CategoryKey] :: ICategory<T...>)._QuickLookUpTable
+	for _, O: any in Objects do
+		Logger.Assert(IsObjectSupported(O), `Object {O} of type {EasyType(O, true)} does not have a supported clean-up method. (Check CustomObjects to declare how custom objects can be destroyed)`, 2, SERVICE_NAME)
+
+		if QuickLookUpTable[O] then
+			Logger.Display("Emphasize", {Object = tostring(O), SubCategory = SubCategory or "Undefined"}, "Duplicate object {Object} added; reference is being moved to the most recent updated SubCategory {SubCategory}", SERVICE_NAME)
+			self:ForgetObject(O)
 		end
+		table.insert(SubCategoryContents, O)
+		QuickLookUpTable[O] = SubCategory or "Undefined"
 	end
 end
 
--- Returns the subcategory and its sub contents
-function CategoryServiceMetaData:GetSubCategoryContents(SubCategory: SupportedTypes): { [number]: any }
-	return self.TasksOnThread[SubCategory]
+function Category.Clean<T...>(self:ICategory<T...>, CleanInstuction:CleanUpInstruction, ...:any?)
+	Logger.TypeCheck(CleanInstuction, 1, false, 3, true, "All", "Categories", "Objects")
+    local ContentsToBeCleaned: { Object }, MetaData = {}, self[CategoryKey] :: ICategory<T...>
+
+
+    if CleanInstuction == "All" then
+        UnstackTable(MetaData._TaskTree, ContentsToBeCleaned)
+        for _, v in MetaData._TaskTree do
+            table.clear(v)
+        end
+    elseif CleanInstuction == "Categories" then
+        for _, Cat:string in { ... } do
+            if MetaData._TaskTree[Cat] then
+                UnstackTable(MetaData._TaskTree[Cat], ContentsToBeCleaned)
+                table.clear(MetaData._TaskTree[Cat])
+            end
+        end
+    elseif CleanInstuction == "Objects" then
+        for _, Object:any in { ... } do
+            if self:Contains(Object) then
+                local SubCategory = MetaData._QuickLookUpTable[Object] :: string
+                table.insert(ContentsToBeCleaned, table.remove(MetaData._TaskTree[SubCategory], table.find(MetaData._TaskTree[SubCategory], Object) :: number) :: Object)
+            else
+                Logger.Display("Emphasize", {Object = Object, thread = self.BindedThread}, "Object {Object} was not found in Category on {thread} skipping over", SERVICE_NAME)
+            end
+        end
+    end
+
+    CleanLookUpCache(MetaData._QuickLookUpTable, ContentsToBeCleaned)
+    return DoCleanProc(ContentsToBeCleaned)
 end
 
--- Cleans the given subcategories
-function CategoryServiceMetaData:Clean(...: SupportedTypes)
-	DoClean(self, { ... })
+function Category.CleanAndForget<T...>(self:ICategory<T...>, CleanInstuction:CleanUpInstruction, ...:any)
+    local ObjectsCleaned = self.Clean(self, CleanInstuction, ...)
+
+    if CleanInstuction == "All" then
+        for SubCategory, _ in (self[CategoryKey] :: ICategory<T...>)._TaskTree do
+            if SubCategory ~= "Undefined" then
+                (self[CategoryKey] :: ICategory<T...>)._TaskTree[SubCategory] = nil
+            end
+        end
+
+    elseif CleanInstuction == "Categories" then
+        for _, SubCategory:string in { ... } do
+            table.clear((self[CategoryKey] :: ICategory<T...>)._TaskTree[SubCategory])
+        end
+    end
+
+    return ObjectsCleaned
 end
 
--- Cleans all categories but leaves the object still linked to the thread
-function CategoryServiceMetaData:CleanAll()
-	local All = {}
-	for Object: string, _ in AllowedObjects :: { [string]: any } do
-		table.insert(All, Object)
-	end
-	DoClean(self, All)
+function Category.CleanAndDestroy<T...>(self:ICategory<T...>, CleanInstuction:CleanUpInstruction, ...:string?)
+	local ObjectsCleaned = self.Clean(self, CleanInstuction, ...)
+    self:Destroy()
+    return ObjectsCleaned
 end
 
--- Cleans then removes object from thread
+function Category.ForgetSubCategory<ObjectToRemove, T...>(self:ICategory<T...>, SubCategory:string, RemoveSubCategory: boolean?): { ObjectToRemove }?
+	Logger.TypeCheck(SubCategory, 1, false, 3, false, "string")
+    Logger.TypeCheck(RemoveSubCategory, 2, true, 3, false, "boolean")
 
---			[	You can only close a category on the same thread it is binded too	]
-function CategoryServiceMetaData:FreeCurrentThread(): nil
-	--[[assert(
-		self.ThreadLock == coroutine.running(),
-		string.format(
-			"%s Attempt to free thread %s from %s. (Threads must be freed by the same thread they are assigned to)",
-			SERVICE_NAME,
-			tostring(self.ThreadLock),
-			tostring(coroutine.running())
-		)
-	)]]
-	self:CleanAll()
-	return Destroy(self :: InternalCategory)
+    local MetaData = (self[CategoryKey] :: ICategory<T...>)
+
+    local SubCategoryContents = MetaData._TaskTree[SubCategory]
+    --Logger.Assert(SubCategoryContents ~= nil, `SubCategory {SubCategory} is not a valid SubCategory for Category binded on {tostring(self.BindedThread)}`, 3, SERVICE_NAME);
+
+    if SubCategoryContents then
+        for _, V:ObjectToRemove in SubCategoryContents do
+            MetaData._QuickLookUpTable[V] = nil
+        end
+
+        if RemoveSubCategory then
+            MetaData._TaskTree[SubCategory] = nil
+        else
+            table.clear(MetaData._TaskTree[SubCategory])
+        end
+    end
+
+    return SubCategoryContents
+end
+
+function Category.ForgetObject<ObjectToRemove, T...>(self:ICategory<T...>, Object: ObjectToRemove): ObjectToRemove?
+	Logger.Assert(Object ~= nil, `Object expected got Nil`, 3, SERVICE_NAME)
+
+    local QuickLookUpTable = (self[CategoryKey] :: ICategory<T...>)._QuickLookUpTable
+    local SubCategory = QuickLookUpTable[Object]
+    --Logger.Assert(SubCategory ~= nil, `Object {tostring(Object)} was not found in Lookup Cache`, 3, SERVICE_NAME)
+
+    if SubCategory then
+        QuickLookUpTable[Object] = nil
+        return RemoveObjectFromTable((self[CategoryKey] :: ICategory<T...>)._TaskTree[SubCategory], Object)
+    else
+        return nil
+    end 
+end
+
+function Category.Contains<T...>(self:ICategory<T...>, Object: Object): boolean
+	Logger.Assert(Object ~= nil, `Object expected got Nil`, 3, SERVICE_NAME)
+    return (self[CategoryKey] :: ICategory<T...>)._QuickLookUpTable[Object] ~= nil
+end
+
+function Category.Amount<T...>(self:ICategory<T...>, SubCategory: string?): number
+    local SubCategoryContents = (self[CategoryKey] :: ICategory<T...>)._TaskTree
+
+    if SubCategory then
+        if SubCategoryContents[SubCategory] then
+            return #SubCategoryContents[SubCategory]
+        else
+            return 0
+        end
+    else
+        return #UnstackTable(SubCategoryContents)
+    end
 end
 
 ----------------------------------------------------------------------------------------------
+--					 		[[ Public service (constructor) ]]
 
---					 		[[ Public Service (mostly constructors) ]]
+const CategoryService = {}
 
-local CategoryService = {}
+function CategoryService.New<T...>(...:string): Category<T...>
+	Logger.Assert(BindedThreads[coroutine.running()] == nil, `Attempt to create Category on {tostring(coroutine.running())} that already has a Category assigned to it.`, 3, SERVICE_NAME)
 
--- Creates a new empty category assigned to the current thread
--- You can call GetCategoryOnCurrentThread if you need to retreive or create a linked copy of the category object on the current thread
-function CategoryService.NewCategory(): Category
-	assert(
-		not IsThreadLocked(coroutine.running()),
-		string.format(
-			"\n%s Attempt to assign: [[%s]] while it is already assigned to a category.\n(There can only be 1 category per thread)",
-			SERVICE_NAME,
-			tostring(coroutine.running())
-		)
-	)
+	local self = {}
+	self.BindedThread = coroutine.running()
+	self._TaskTree = BuildTaskTree(...)
+	self._QuickLookUpTable = {}
 
-	local self = setmetatable({}, CategoryServiceMetaData) :: any
-	self.TasksOnThread = BuildTaskTree()
-	self.ThreadLock = coroutine.running()
+	const Temp = SecureClasses(self, Category, Category.ClassName) :: Category<T...>
 
-	self.Insertion  = TramService.NewTram(nil, nil, nil, true)
+	BindedThreads[Temp.BindedThread] = Temp
 
-	ActiveThreadCategories[coroutine.running()] = self
-	return self
+	return Temp
 end
 
--- Returns the category linked to the current thread
-function CategoryService:GetCategoryOnCurrentThread(): Category?
-	return ActiveThreadCategories[coroutine.running()]
+function CategoryService:GetCategoryOnThread(Thread:thread?): Category<>?
+    return BindedThreads[Thread or coroutine.running()]
 end
 
--- Closes the category on the current thread
-function CategoryService:CloseCategoryOnCurrentThread(): ()
-	local CurrentCategory: Category? = self:GetCategoryOnCurrentThread()
-	if CurrentCategory then
-		CurrentCategory:FreeCurrentThread()
-	end
-end
+CategoryService.IsObjectSupported = IsObjectSupported
 
 return CategoryService
+
+
+----------------------------------------------------------------------------------------------
+
+-- Tags: https://eryn.io/moonwave/docs/TagList/
+
+--[=[ 
+    @class TEMPLATECLASS
+    A class template
+]=]
+
+--[=[
+    @within TEMPLATECLASS
+    @type TEMPLATETYPE Test
+
+    Template type
+]=]
+
+--[=[
+    @within TEMPLATECLASS
+    @interface TEMPLATEINTERFACE
+
+    .T1 TEMPLATETYPE
+    .T2 TEMPLATETYPE
+    .T3 TEMPLATETYPE
+
+    Template type
+]=]
+
+--[=[
+    @within TEMPLATECLASS
+    @function TEMPLATEFUNCTION
+
+    @param T1 TEMPLATETYPE
+    @return TEMPLATEINTERFACE
+
+    Template type
+
+]=]
+
+--[=[
+    @within TEMPLATECLASS
+    @method TEMPLATEMETHOD
+
+    @param T1 TEMPLATETYPE
+    @return TEMPLATEINTERFACE
+
+    Template type
+
+    :::tip
+        Tip Container
+    :::
+    :::info
+        info Container
+    :::
+    :::caution
+        caution Container
+    :::
+    :::danger
+        danger Container
+    :::
+
+    | Head1 | Head2 | Head3 |
+    |-------|-------|-------|
+    | Prop1 | Prop2 | Prop3 |
+]=]
+
+
+--[=[
+    @within TEMPLATECLASS
+    
+    @prop TEMPLATEPROPERTY1 boolean
+
+]=]

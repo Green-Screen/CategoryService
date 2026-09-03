@@ -1,5 +1,5 @@
 {
-  "name": "CategoryService",
+  "name": "EasyType",
   "emitLegacyScripts": false,
   
   
@@ -7,18 +7,15 @@
     "$ignoreUnknownInstances": true,
     "$className": "DataModel",
 
-    "Workspace": {
-      "CategoryService": {
+    "ReplicatedStorage": {
+      "EasyType": {
         "$className": "Folder",
         
-          "CategoryService": {
+          "EasyType": {
           "$path": "src",
 
-          "tests": {
+          "Tests": {
             "$path": "tests"
-          },
-          "Dependencies": {
-            "$path": "Packages"
           }
         }
       }
